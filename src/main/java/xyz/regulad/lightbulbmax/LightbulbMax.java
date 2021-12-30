@@ -168,7 +168,7 @@ public class LightbulbMax extends JavaPlugin implements Listener {
 
             return worldArrayList;
         }  catch (final @NotNull SQLException sqlException) {
-            if (!sqlException.getMessage().equals("Illegal operation on empty result set.")) {
+            if (!sqlException.getMessage().equals("Illegal operation on empty result set.") && !sqlException.getMessage().equals("ResultSet closed")) {
                 sqlException.printStackTrace();
             }
             return null;
@@ -217,7 +217,7 @@ public class LightbulbMax extends JavaPlugin implements Listener {
             resultSet.next();
             return resultSet.getInt("nightvision") == 1;
         }  catch (final @NotNull SQLException sqlException) {
-            if (!sqlException.getMessage().equals("Illegal operation on empty result set.")) {
+            if (!sqlException.getMessage().equals("Illegal operation on empty result set.") && !sqlException.getMessage().equals("ResultSet closed")) {
                 sqlException.printStackTrace();
             }
             return false;
