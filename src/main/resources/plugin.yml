@@ -5,3 +5,33 @@ author: regulad
 
 main: ${project.groupId}.${project.artifactId}.${project.name}
 api-version: 1.17
+
+libraries:
+  - com.zaxxer:HikariCP:5.0.0
+
+permissions:
+  LightbulbMax.*:
+    description: Gives perission to all LightbulbMax abilities.
+    children:
+      - LightbulbMax.NightVision
+      - LightbulbMax.VoidWorldSet
+      - sts.give
+  LightbulbMax.NightVision:
+    description: Grants access to the night vision command.
+  LightbulbMax.VoidWorldSet:
+    description: Grants access to the voidset command.
+  sts.give:
+    description: Gives access to the sts give command.
+
+commands:
+  nv:
+    permission: LightbulbMax.NightVision
+    description: Toggles night vision.
+  voidset:
+    description: Allows you to toggle if you want to take void damage. You will be teleported to spawn.
+    permission: LightbulbMax.VoidWorldSet
+    usage: "Usage: /<command> <world>"
+  stsgive:
+    permission: sts.give
+    description: Gives a player the TeamSeas heart of the sea.
+    usage: "Usage: /<command> <player>"

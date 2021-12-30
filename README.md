@@ -1,3 +1,3 @@
-# BukkitTemplate
+# LightbulbMax
 
-A quick template for making shitty plugins.
+Commission: https://docs.google.com/document/d/1DKtpPcrKDIAnfIbfgrOZdP0VzuT9kLLQolKr351rbX8/edit
