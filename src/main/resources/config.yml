@@ -1,0 +1,2 @@
+# If false, player will be teleported on world spawn when saved from void death. If true, they will use their spawn point.
+use_player_spawn: false

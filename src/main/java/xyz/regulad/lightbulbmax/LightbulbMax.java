@@ -41,10 +41,17 @@ public class LightbulbMax extends JavaPlugin implements Listener {
 
     private @Nullable HikariDataSource hikariDataSource;
 
+    private boolean usePlayerSpawn;
+
     @Override
     public void onEnable() {
         // Setup instance access
         instance = this;
+
+        // Load Config
+        this.saveDefaultConfig();
+        usePlayerSpawn = this.getConfig().getBoolean("use_player_spawn", false);
+
         // Setup bStats metrics
         new Metrics(this, 13761); // TODO: Replace this in your plugin!
         // Register commands
@@ -83,7 +90,9 @@ public class LightbulbMax extends JavaPlugin implements Listener {
         // Setup
 
         try (final @NotNull Connection connection = Objects.requireNonNull(this.hikariDataSource).getConnection()) {
-            connection.prepareStatement("CREATE TABLE IF NOT EXISTS lightbulbmax (uuid VARCHAR(36) PRIMARY KEY, worlds VARCHAR(256) DEFAULT '', nightvision INTEGER DEFAULT 0);")
+            connection.prepareStatement("CREATE TABLE IF NOT EXISTS lightbulbmax (uuid VARCHAR(36) PRIMARY KEY, nightvision INTEGER DEFAULT 0);")
+                    .execute();
+            connection.prepareStatement("CREATE TABLE IF NOT EXISTS lightbulbworlds (world VARCHAR(255) PRIMARY KEY, voidsafety INTEGER DEFAULT 0);")
                     .execute();
         }  catch (final @NotNull SQLException sqlException) {
             if (!sqlException.getMessage().equals("Illegal operation on empty result set.")) {
@@ -111,31 +120,14 @@ public class LightbulbMax extends JavaPlugin implements Listener {
     }
 
     /**
-     * Sets a player's void damage state. If a player
-     * @param player The {@link Player} to change settings of.
-     * @param world The {@link World} the player is changing.
-     * @param state A {@code boolean} representing the player's
+     * @param world The {@link World} the that is changing.
+     * @param state A {@code boolean} representing the new state.
      */
-    public void changeVoidWorldState(final @NotNull Player player, final @NotNull World world, final boolean state) {
-        final @Nullable List<@NotNull World> possibleExistingWorlds = this.getVoidWorlds(player);
-        final @NotNull List<@NotNull World> existingWorlds = possibleExistingWorlds != null ? possibleExistingWorlds : new ArrayList<>();
-
-        if (!state) {
-            existingWorlds.remove(world);
-        } else {
-            existingWorlds.add(world);
-        }
-
-        final @NotNull ArrayList<@NotNull String> worldNames = new ArrayList<>();
-
-        existingWorlds.forEach(existingWorld -> worldNames.add(existingWorld.getName()));
-
-        final @NotNull String worlds = String.join(",", worldNames.toArray(new String[0]));
-
+    public void changeVoidWorldState(final @NotNull World world, final boolean state) {
         try (final @NotNull Connection connection = Objects.requireNonNull(this.hikariDataSource).getConnection()) {
-            final @NotNull PreparedStatement upsertStatement = connection.prepareStatement("INSERT INTO lightbulbmax (uuid, worlds) VALUES (?, ?) ON CONFLICT (uuid) DO UPDATE SET worlds=excluded.worlds;");
-            upsertStatement.setString(1, player.getUniqueId().toString());
-            upsertStatement.setString(2, worlds);
+            final @NotNull PreparedStatement upsertStatement = connection.prepareStatement("INSERT INTO lightbulbworlds (world, voidsafety) VALUES(?, ?) ON CONFLICT (world) DO UPDATE SET voidsafety=excluded.voidsafety;");
+            upsertStatement.setString(1, world.getName());
+            upsertStatement.setInt(2, state ? 1 : 0);
             upsertStatement.execute();
         } catch (final @NotNull SQLException sqlException) {
             if (!sqlException.getMessage().equals("Illegal operation on empty result set.")) {
@@ -145,45 +137,23 @@ public class LightbulbMax extends JavaPlugin implements Listener {
     }
 
     /**
-     * Gets the worlds a player has configured void safety in.
-     * @param player The {@link Player} being queried.
-     * @return A {@link List} of all the {@link World}s.
-     */
-    public @Nullable List<@NotNull World> getVoidWorlds(final @NotNull Player player) {
-        try (final @NotNull Connection connection = Objects.requireNonNull(this.hikariDataSource).getConnection()) {
-            final @NotNull PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM lightbulbmax WHERE uuid = ?;");
-            preparedStatement.setString(1, player.getUniqueId().toString());
-            final @NotNull ResultSet resultSet = preparedStatement.executeQuery();
-            resultSet.next();
-            final @NotNull String worldsString = resultSet.getString("worlds");
-
-            final @NotNull ArrayList<@NotNull World> worldArrayList = new ArrayList<>();
-
-            Arrays.stream(worldsString.split(",")).forEach(worldName -> {
-                final @Nullable World possibleWorld = this.getServer().getWorld(worldName);
-                if (possibleWorld != null) {
-                    worldArrayList.add(possibleWorld);
-                }
-            });
-
-            return worldArrayList;
-        }  catch (final @NotNull SQLException sqlException) {
-            if (!sqlException.getMessage().equals("Illegal operation on empty result set.") && !sqlException.getMessage().equals("ResultSet closed")) {
-                sqlException.printStackTrace();
-            }
-            return null;
-        }
-    }
-
-    /**
      * Gets the state of the player's void world configuration.
-     * @param player The {@link Player} being queried.
      * @param world The {@link World} being queried.
      * @return {@code true} if the player should not take fall damage, {@code false} if they should.
      */
-    public boolean getVoidWorldState(final @NotNull Player player, final @NotNull World world) {
-        final @Nullable List<@NotNull World> worlds = this.getVoidWorlds(player);
-        return worlds != null && worlds.contains(world);
+    public boolean getVoidWorldState(final @NotNull World world) {
+        try (final @NotNull Connection connection = Objects.requireNonNull(this.hikariDataSource).getConnection()) {
+        final @NotNull PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM lightbulbworlds WHERE world = ?;");
+        preparedStatement.setString(1, world.getName());
+        final @NotNull ResultSet resultSet = preparedStatement.executeQuery();
+        resultSet.next();
+        return resultSet.getInt("voidsafety") == 1;
+        } catch (final @NotNull SQLException sqlException) {
+            if (!sqlException.getMessage().equals("Illegal operation on empty result set.") && !sqlException.getMessage().equals("ResultSet closed")) {
+                sqlException.printStackTrace();
+            }
+            return false;
+        }
     }
 
     /**
@@ -193,7 +163,7 @@ public class LightbulbMax extends JavaPlugin implements Listener {
      */
     public void setNightVision(final @NotNull Player player, final boolean nightVision) {
         try (final @NotNull Connection connection = Objects.requireNonNull(this.hikariDataSource).getConnection()) {
-            final @NotNull PreparedStatement upsertStatement = connection.prepareStatement("INSERT INTO lightbulbmax (uuid, nightvision) VALUES (?, ?) ON CONFLICT (uuid) DO UPDATE SET nightvision=excluded.nightvision;");
+            final @NotNull PreparedStatement upsertStatement = connection.prepareStatement("INSERT INTO lightbulbmax (uuid, nightvision) VALUES(?, ?) ON CONFLICT (uuid) DO UPDATE SET nightvision=excluded.nightvision;");
             upsertStatement.setString(1, player.getUniqueId().toString());
             upsertStatement.setInt(2, nightVision ? 1 : 0);
             upsertStatement.execute();
@@ -228,10 +198,13 @@ public class LightbulbMax extends JavaPlugin implements Listener {
     public void onVoidDamage(final @NotNull EntityDamageEvent event) {
         if (event.getCause().equals(EntityDamageEvent.DamageCause.VOID)
                 && event.getEntity() instanceof final @NotNull Player player
-                && this.getVoidWorldState(player, event.getEntity().getWorld())) {
+                && this.getVoidWorldState(event.getEntity().getWorld())) {
             event.setCancelled(true);
             player.setFallDistance(0);
-            player.teleport(player.getWorld().getSpawnLocation());
+            player.teleport(usePlayerSpawn ?
+                    player.getWorld().getSpawnLocation() :
+                    (player.getBedSpawnLocation() != null ? player.getBedSpawnLocation() : this.getServer().getWorlds().get(0).getSpawnLocation())
+            );
         }
     }
 

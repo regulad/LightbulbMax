@@ -39,8 +39,8 @@ public class VoidWorldSetCommand implements CommandExecutor, TabCompleter {
 
             if (possibleWorld != null) {
                 this.lightbulbMax.getServer().getScheduler().runTaskAsynchronously(this.lightbulbMax, () -> {
-                    final boolean currentState = this.lightbulbMax.getVoidWorldState(player, possibleWorld);
-                    this.lightbulbMax.changeVoidWorldState(player, possibleWorld, !currentState);
+                    final boolean currentState = this.lightbulbMax.getVoidWorldState(possibleWorld);
+                    this.lightbulbMax.changeVoidWorldState(possibleWorld, !currentState);
 
                     if (!currentState) {
                         player.sendMessage(VOID_SAFETY_ON);
