@@ -201,7 +201,7 @@ public class LightbulbMax extends JavaPlugin implements Listener {
                 && this.getVoidWorldState(event.getEntity().getWorld())) {
             event.setCancelled(true);
             player.setFallDistance(0);
-            player.teleport(usePlayerSpawn ?
+            player.teleport(!usePlayerSpawn ?
                     player.getWorld().getSpawnLocation() :
                     (player.getBedSpawnLocation() != null ? player.getBedSpawnLocation() : this.getServer().getWorlds().get(0).getSpawnLocation())
             );
